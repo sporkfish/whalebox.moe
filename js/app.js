@@ -1,4 +1,7 @@
-const baseUrl = window.location.hostname === '127.0.0.1' ? "http://127.0.0.1:8787" : "https://api.whalebox.moe";
+const baseUrl =
+  window.location.hostname === "127.0.0.1"
+    ? "http://127.0.0.1:8787"
+    : "https://api.whalebox.moe";
 
 document.addEventListener("DOMContentLoaded", () => {
   const fileInput = document.getElementById("fileInput");
@@ -79,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
         filename: file.name,
         filesize: file.size,
         overwrite: isCheckboxChecked("overwrite"),
-        gameStorage: isCheckboxChecked("gameStorage")
+        gameStorage: isCheckboxChecked("gameStorage"),
       }),
       credentials: "include",
       headers: {
@@ -116,65 +119,72 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-const uploadId = data.uploadId;
-const downloadUrl = data.downloadUrl;
+    const uploadId = data.uploadId;
+    const downloadUrl = data.downloadUrl;
 
-if (data.multipart) {
-  const PART_SIZE = 100 * 1024 * 1024
-  const parts = []
+    if (data.multipart) {
+      const PART_SIZE = 100 * 1024 * 1024;
+      const parts = [];
 
-  for (const part of data.parts) {
-    const start = (part.partNumber - 1) * PART_SIZE
-    const chunk = file.slice(start, Math.min(start + PART_SIZE, file.size))
+      for (const part of data.parts) {
+        const start = (part.partNumber - 1) * PART_SIZE;
+        const chunk = file.slice(start, Math.min(start + PART_SIZE, file.size));
 
-    const res = await fetch(part.url, { method: 'PUT', body: chunk })
-    if (!res.ok) {
-      info.textContent = `${file.name} - Upload failed (part ${part.partNumber}).`
-      return
+        const res = await fetch(part.url, { method: "PUT", body: chunk });
+        if (!res.ok) {
+          info.textContent = `${file.name} - Upload failed (part ${part.partNumber}).`;
+          return;
+        }
+
+        parts.push({
+          partNumber: part.partNumber,
+          etag: res.headers.get("ETag"),
+        });
+
+        const pct = Math.round((part.partNumber / data.parts.length) * 100);
+        bar.style.width = pct + "%";
+        info.textContent = `${file.name} - ${pct}%`;
+        dropzoneMessage.textContent = `Uploading ${pct}%`;
+      }
+
+      const err = await completeUpload(uploadId, parts);
+      if (err) {
+        info.textContent = `${file.name} - Upload failed (${err}).`;
+        return;
+      }
+
+      linkA.textContent = downloadUrl;
+      linkA.href = downloadUrl;
+      copyBtn.style.display = "inline-block";
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(downloadUrl);
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy link";
+          }, 2000);
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = downloadUrl;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy link";
+          }, 2000);
+        }
+      });
+      info.textContent = `${file.name} - Done`;
+      bar.style.width = "100%";
+      status.textContent = "Upload successful.";
+      dropzoneMessage.textContent = "Drop or select files";
+      return;
     }
 
-    parts.push({ partNumber: part.partNumber, etag: res.headers.get('ETag') })
-
-    const pct = Math.round((part.partNumber / data.parts.length) * 100)
-    bar.style.width = pct + '%'
-    info.textContent = `${file.name} - ${pct}%`
-    dropzoneMessage.textContent = `Uploading ${pct}%`
-  }
-
-  const err = await completeUpload(uploadId, parts)
-  if (err) {
-    info.textContent = `${file.name} - Upload failed (${err}).`
-    return
-  }
-
-  linkA.textContent = downloadUrl
-  linkA.href = downloadUrl
-  copyBtn.style.display = 'inline-block'
-  copyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(downloadUrl)
-      copyBtn.textContent = 'Copied!'
-      setTimeout(() => { copyBtn.textContent = 'Copy link' }, 2000)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = downloadUrl
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      ta.remove()
-      copyBtn.textContent = 'Copied!'
-      setTimeout(() => { copyBtn.textContent = 'Copy link' }, 2000)
-    }
-  })
-  info.textContent = `${file.name} - Done`
-  bar.style.width = '100%'
-  status.textContent = 'Upload successful.'
-  dropzoneMessage.textContent = 'Drop or select files'
-  return
-}
-
-const uploadUrl = data.uploadUrl
-return new Promise((resolve, reject) => {
+    const uploadUrl = data.uploadUrl;
+    return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl);
 
