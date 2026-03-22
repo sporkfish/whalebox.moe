@@ -11,7 +11,7 @@
 </head>
 <body>
   <header>
-    <button class="discord-login" id="loginBtn" onclick="window.location.href='http://127.0.0.1:8787/auth/login'">
+    <button class="discord-login" id="loginBtn" onclick="window.location.href=(window.location.hostname==='127.0.0.1'?'http://127.0.0.1:8787':'https://api.whalebox.moe')+'/auth/login'">
       <img src="/svgs/discord.svg" alt="Discord logo" style="height:1em; vertical-align:middle;">
       Login with Discord
     </button>
